@@ -1,6 +1,5 @@
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Scanner;
@@ -19,16 +18,14 @@ public class Main {
                 while (true){
                     Socket clientConn = server.accept();
                     new Thread(()->{
-                        OutputStream outputStream;
-                        InputStream inputStream;
-                        try {
-                            outputStream = clientConn.getOutputStream();
-                            inputStream = clientConn.getInputStream();
+                        try (OutputStream outputStream = clientConn.getOutputStream();
+                             ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+                             InputStream inputStream = clientConn.getInputStream()) {
                             try {
                                 while (true) {
                                     try {
                                         int n = inputStream.read();
-                                        outputStream.write(getFibonacciNumberByIndex(n));
+                                        objectOutputStream.writeObject(getFibonacciNumberByIndex(n));
                                     } catch (Exception e) {
                                         break;
                                     }
@@ -36,8 +33,6 @@ public class Main {
                             } finally {
                                 Thread.currentThread().interrupt();
                                 clientConn.close();
-                                if (inputStream != null) inputStream.close();
-                                if (outputStream != null) outputStream.close();
                             }
                         } catch (IOException ex) {
                             System.out.println(ex.getMessage());
@@ -50,11 +45,11 @@ public class Main {
 
         } else {
 
-            try (Socket clientSocket = new Socket (args[0], Integer.parseInt(args[1]))){
-                OutputStream outputStream = clientSocket.getOutputStream();
-                InputStream inputStream = clientSocket.getInputStream();
-
-                Scanner in = new Scanner(System.in);
+            try (Socket clientSocket = new Socket (args[0], Integer.parseInt(args[1]));
+                 Scanner in = new Scanner(System.in);
+                 OutputStream outputStream = clientSocket.getOutputStream();
+                 InputStream inputStream = clientSocket.getInputStream();
+                 ObjectInputStream objectInputStream = new ObjectInputStream(inputStream)){
                 while (true) {
                     System.out.print("Enter the Fibonacci number index: ");
                     int num;
@@ -66,25 +61,24 @@ public class Main {
                     }
 
                     outputStream.write(num);
-                    System.out.println("Fibonacci number: " + inputStream.read());
+                    System.out.println("Fibonacci number: " + objectInputStream.readObject());
                 }
-                in.close();
-                outputStream.close();
-                inputStream.close();
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
         }
     }
 
-    public static int getFibonacciNumberByIndex(int n){
-        if (n < 1) return -1;
-        int prePrevious = 1, previous = 1, current = 1;
-        for (int i = 3; i <= n; i++){
-            current = prePrevious + previous;
-            prePrevious = previous;
-            previous = current;
-        }
+    public static BigInteger getFibonacciNumberByIndex(int n){
+        if (n < 1) return BigInteger.ZERO;
+
+        BigInteger prePrevious = BigInteger.valueOf(1),
+                previous = BigInteger.valueOf(1),
+                current = BigInteger.valueOf(1);
+
+        for (int i = 3; i <= n; i++, prePrevious = previous, previous = current)
+            current = prePrevious.add(previous);
+
         return current;
     }
 }
